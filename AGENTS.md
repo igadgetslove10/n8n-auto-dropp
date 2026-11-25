@@ -25,8 +25,7 @@
 
 ## Contexto del proyecto
 - Para detalles completos, bitácora y pendientes: ver PROJECT_STATUS.md
-- Para plan de migración futura a Z Code: ver download/FUTURE_TASK_ZCODE_MIGRATION.md
-- Para prompts de ejecución: ver download/PROMPT_*.md
+- Para prompts y planes futuros: se crean en download/ cuando se necesiten.
 
 ## Estado actual (2026-11-24)
 - Fase: BUILD del research workflow. Próximo: ship Jar Opener manualmente.
