@@ -32,3 +32,6 @@ dist/
 Thumbs.db
 desktop.ini
 .DS_Store
+*.json.log
+download/*.json.log
+download/etapa4_cli_*.json.log

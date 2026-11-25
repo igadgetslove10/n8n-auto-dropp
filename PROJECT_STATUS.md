@@ -11,6 +11,9 @@
 7. Si una tarea requiere permisos de administrador, detenerse, preparar los comandos y pedir autorización. No eludir permisos.
 8. No reiniciar Windows ni cerrar procesos críticos sin autorización.
 9. No desactivar Windows Defender, actualizaciones de seguridad ni otros mecanismos de seguridad.
+10. **Sincronización git obligatoria.** Después de cualquier cambio técnico relevante en este archivo, ejecutar `git add PROJECT_STATUS.md && git commit -m "<descripción>" && git push`. El GitHub repo (https://github.com/igadgetslove10/n8n-auto-dropp.git) es la fuente que cualquier AI debe poder leer.
+11. **No confiar en memoria de sesiones anteriores.** Cualquier AI (Claude, Z Code, Gemini, ChatGPT, etc.) que arranque una sesión nueva DEBE leer este archivo completo antes de responder. La bitácora (§8) es el historial confiable; la memoria del modelo NO lo es.
+12. **AGENTS.md como referencia rápida.** Para el stack actual, reglas de operación y workflows activos sin tener que leer PROJECT_STATUS.md completo, ver `AGENTS.md` en la raíz del repo.
 
 ---
 
@@ -75,6 +78,8 @@ Otros secretos fuera de n8n: authtoken de ngrok (en `ngrok.yml`, perfil del usua
 | `Ha6u0tTOifNmQBNh` | Reporte diario de pedidos Supabase (plantilla 4406) | Inactivo (borrador) | Agente Gemini + herramientas Supabase + Gmail |
 | `KtE0RxKUEXAcpK1f` | Shopify MCP Server + Asistente (plantilla 12296) | Inactivo (borrador) | 8 errores de validación (p. ej. `MISSING_MCP_ENDPOINT`) |
 | `IdFQYxr9nxv56ACM` | My workflow | Inactivo | Chat trigger + agente Gemini |
+| `hNwyHv5LQAJ8GVNq` | Research - Productos Ganadores (US/USD) | Inactivo | Form Trigger + Gemini 2.5-flash + SearchApi (HTTP Request directo) + Supabase. Pipeline determinista: 3 llamadas SearchApi por producto, máx 15 por run. profit_analysis con gross_margin, profit_before_ads, profit_after_ads. Sin nodos Shopify. Modelo `gemini-3.5-flash` desde 2026-11-23 (2.5-flash retirado). Corte antes de SearchApi si no hay ideas válidas (`gemini_ideas_failed`). AliExpress vía engine `aliexpress_search` (páginas `/item/`). Análisis Gemini en bucle con reintentos (20 s) y fallback de modelo. `dry_run` + `ideas_override` para previsualizar queries. Run 3 (ejec. 32): 3 discarded `no_us_trend`; créditos = `run_stats` (9). `source_url` corregido después del run, pendiente de verificar en un run 4 |
+| `B4sFMVncptK3CbgL` | TEMP - Verificaciones (modelos Gemini / creditos SearchApi) | Inactivo | Temporal: consulta `/api/v1/me` de SearchApi (créditos, gratis). No borrar sin autorización |
 
 ## 5. Infraestructura verificada
 
@@ -109,6 +114,11 @@ Otros secretos fuera de n8n: authtoken de ngrok (en `ngrok.yml`, perfil del usua
 - [ ] Upsert en el workflow de pedidos y corregir moneda / `total_usd`.
 - [ ] Añadir `.gitignore` (backups, `.env`, `*.bak`, `*.pow`).
 - [ ] Limitar el puerto de n8n a `127.0.0.1:5678` (requiere recrear el contenedor; planificar con copia del volumen).
+- [x] Workflow `hNwyHv5LQAJ8GVNq`: cambiar modelo Gemini, cortar el flujo si no hay ideas, corregir el orden de `rejection_reason`, contar llamadas reales. Hecho el 2026-11-23 y verificado con la ejecución 28.
+- [x] Workflow `hNwyHv5LQAJ8GVNq`: Trends "not enough data" → `no_us_trend`; contador real; bucle de reintento y fallback Gemini; engine `aliexpress_search` y `clean()` sin `URL`. Hecho el 2026-11-23 (run 3 / verificación offline).
+- [ ] Run 4 (~9 créditos) para verificar `source_url` en una ejecución real (requiere autorización).
+- [ ] Añadir una query de Trends corta (`trends_query`) separada de `search_query` (requiere autorización).
+- [ ] Decidir el UPDATE de `source_url` en las 3 filas del run 3, y el borrado del workflow temporal `B4sFMVncptK3CbgL`.
 - [ ] Siguientes fases de la *GUIA DROPP*: AutoDS, Telegram, reporte diario, orquestador.
 
 ## 8. Bitácora de sesiones
@@ -128,3 +138,43 @@ Otros secretos fuera de n8n: authtoken de ngrok (en `ngrok.yml`, perfil del usua
 - Usuario exportó el plan de energía como admin (`powerplan_equilibrado_post_20261121.pow`) y verificó físicamente tapa cerrada + enchufado.
 - Auditoría de solo lectura: servicio, túnel, backups y contenedor verificados.
 - Carpeta `Scrips` renombrada a `scripts`. Creado este `PROJECT_STATUS.md`.
+
+### 2026-11-23
+- Recuperado contenedor n8n real (volumen n8n_data). n8n-old-novolume parado (no borrado).
+- Workflow SqtTp6pHFD1uyopA (renovación token Shopify): añadido Manual Trigger para permitir ejecución CLI. Backup en C:\Users\ceehv\Desktop\MI AGENTE\backups\workflow_SqtTp6pHFD1uyopA_20261123_120603.json.
+- Token Shopify renovado manualmente vía CLI (expires_in 86399, scopes write_inventory,write_orders,write_products). Conexión verificada con lectura real de producto 15613411393772.
+- SQL ejecutado en Supabase: GRANT SELECT/INSERT/UPDATE en products y suppliers a service_role; índices únicos uq_products_source_url y uq_suppliers_name_platform creados. Este último sin lower() para soportar on_conflict upsert.
+- Workflow hNwyHv5LQAJ8GVNq "Research - Productos Ganadores (US/USD)" construido, inactivo, validado (0 errores).
+- Cambios de diseño vs spec original:
+  - Pipeline determinista en vez de AI Agent (presupuesto SearchApi limitado).
+  - HTTP Request directo a SearchApi en vez de community node (no exponía google_trends ni amazon engines).
+  - AliExpress reemplaza Amazon como tercera búsqueda (necesita coste de proveedor real).
+  - Índice suppliers sin lower() (on_conflict no soporta expresiones).
+  - shipping_cost_usd = 0 válido (envío gratis en AliExpress común).
+  - image_license siempre restricted/unknown (imágenes de Google Shopping no son comercialmente seguras).
+  - Supplier frecuentemente "AliExpress (unverified seller)" con metadata.supplier_verified=false.
+- Ejecución de prueba Etapa 4: nicho kitchen gadgets, 3 productos, 40% / USD 15.
+- Resultados: **FALLIDA.** Ejecución n8n 23 (CLI, 24 s, status success). Ambos nodos Gemini devolvieron 404: `models/gemini-2.5-flash is no longer available to new users` (la API sugiere `gemini-3.8-flash`). Sin ideas, el run siguió con 1 item vacío: Shopping y Trends dieron 400 (`Missing required parameter q.`) y AliExpress dio 200 con `q="undefined ..."` (≈1 crédito gastado, quedan ≈99). Resultado: 0 candidate, 0 discarded, 1 incomplete. Verificado vía Supabase MCP: 0 filas en `products` y 0 en `suppliers`. Workflow NO modificado; el cambio de modelo queda pendiente de autorización. Detalle en `download/REPORTE_ETAPA4.md` y `download/BLOCKED_ACTIONS.log`.
+- Fallos de manejo de errores detectados: el fallo de Gemini en las ideas no corta el flujo; el orden de `rejection_reason` da `search_failed` en vez de `parser_failed`; `run_stats.searchapi_calls` vale siempre 3.
+- Nada publicado en Shopify. Nada creado en AutoDS.
+- **Fixes autorizados aplicados a `hNwyHv5LQAJ8GVNq`** (backup `C:\Users\ceehv\Desktop\MI AGENTE\backups\workflow_hNwyHv5LQAJ8GVNq_20261123_145412.json`):
+  - Modelo verificado con `GET /v1beta/models` y una prueba real de structured output. `gemini-3.8-flash` daba 503 "high demand" y `gemini-2.5-pro` daba 404, así que se eligió **`gemini-3.5-flash`**. Reintentos Gemini 3, espera 5 s.
+  - Nuevo Code `Parsear y validar ideas` + IF `¿Hay ideas válidas?` (la rama false va a `Resumen` con `gemini_ideas_failed`).
+  - Nuevo orden de `rejection_reason` (9 valores). Los fallos con título conocido se insertan como `discarded`.
+  - `run_stats` con conteo real (`searchapi_calls`, `searchapi_success`, `gemini_calls`, `tokens_used`).
+  - Validación: 0 errores, 0 avisos.
+- Creado el workflow temporal `B4sFMVncptK3CbgL` (verificar modelos y créditos SearchApi). No borrado, por regla.
+- **Run 2 (ejecución 28, 37 s):** 3 ideas, 3 filas insertadas, todas `discarded` (`search_failed` ×2 porque Trends devolvió "not enough data"; `parser_failed` ×1 por un 503 de Gemini tras 3 intentos). 0 candidate. Fórmulas de `profit_analysis` verificadas a mano: OK.
+- Créditos SearchApi según el panel `/api/v1/me`: 96 antes → 84 después (12 consumidos). `run_stats` dice 11; las peticiones HTTP detectadas son 9. El run 1 consumió 4 (100 → 96).
+- Ningún producto aprobable. Detalle en `download/REPORTE_ETAPA4.md`.
+- **Fixes del run 3 autorizados** (backup `C:\Users\ceehv\Desktop\MI AGENTE\backups\workflow_hNwyHv5LQAJ8GVNq_20261123_160400.json`; aplicados con `n8n import:workflow` + MCP; validación 0 errores / 0 avisos):
+  - Trends "not enough data" → `no_us_trend`.
+  - `retryOnFail=false` explícito en los nodos SearchApi: los reintentos de n8n no actúan con `onError=continue`. Ahora el contador cuenta 1 por respuesta.
+  - Bucle explícito de análisis Gemini (Loop Over Items + Wait 20 s; 3.5-flash ×3, luego 3.6 / 3.7 / 2.5-pro), porque `waitBetweenTries` está limitado a 5 s en n8n 2.46.6.
+  - AliExpress pasa al engine `aliexpress_search`, solo enlaces `/item/`, y `source_url` debe ser uno de ellos.
+  - Modo `dry_run` / `ideas_override`.
+- Dry-run: 0 créditos. Queries revisadas (en el reporte). Run 3 con esas mismas ideas.
+- **Run 3 (ejecución 32, 57 s):** 3 discarded, `no_us_trend` ×3 (Trends sin datos en las 3 queries de 4–5 palabras). Créditos 84 → 75 = 9 = `run_stats.searchapi_calls` ✅. Gemini 3/3 al primer intento. Fórmulas de `profit_analysis` OK en los 3.
+- **Bug latente encontrado:** el sandbox de Code nodes no tiene `URL` (`URL is not defined`). `clean()` devolvía null siempre, así que `source_url` era null y la deduplicación no funcionaba desde la creación del workflow. Corregido con regex y verificado en el sandbox real y offline sobre el run 3 (3/3 URLs `/item/` válidas). **Run 4 no lanzado** (requiere autorización). Las filas del run 3 siguen con `source_url` null.
+- `/api/v1/me` de SearchApi no consume créditos. Quedan **75**.
+- `Parámetros de prueba` quedan en `dry_run=true`.
