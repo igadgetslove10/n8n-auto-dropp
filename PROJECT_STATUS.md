@@ -118,7 +118,8 @@ Otros secretos fuera de n8n: authtoken de ngrok (en `ngrok.yml`, perfil del usua
 - [x] Workflow `hNwyHv5LQAJ8GVNq`: Trends "not enough data" → `no_us_trend`; contador real; bucle de reintento y fallback Gemini; engine `aliexpress_search` y `clean()` sin `URL`. Hecho el 2026-11-23 (run 3 / verificación offline).
 - [ ] Run 4 (~9 créditos) para verificar `source_url` en una ejecución real (requiere autorización).
 - [ ] Añadir una query de Trends corta (`trends_query`) separada de `search_query` (requiere autorización).
-- [ ] Decidir el UPDATE de `source_url` en las 3 filas del run 3, y el borrado del workflow temporal `B4sFMVncptK3CbgL`.
+- [x] UPDATE de `source_url` en las 3 filas del run 3. Hecho el 2026-11-27 y verificado vía MCP.
+- [ ] Decidir el borrado del workflow temporal `B4sFMVncptK3CbgL`.
 - [ ] Siguientes fases de la *GUIA DROPP*: AutoDS, Telegram, reporte diario, orquestador.
 
 ## 8. Bitácora de sesiones
@@ -178,3 +179,11 @@ Otros secretos fuera de n8n: authtoken de ngrok (en `ngrok.yml`, perfil del usua
 - **Bug latente encontrado:** el sandbox de Code nodes no tiene `URL` (`URL is not defined`). `clean()` devolvía null siempre, así que `source_url` era null y la deduplicación no funcionaba desde la creación del workflow. Corregido con regex y verificado en el sandbox real y offline sobre el run 3 (3/3 URLs `/item/` válidas). **Run 4 no lanzado** (requiere autorización). Las filas del run 3 siguen con `source_url` null.
 - `/api/v1/me` de SearchApi no consume créditos. Quedan **75**.
 - `Parámetros de prueba` quedan en `dry_run=true`.
+
+### 2026-11-27
+- UPDATE de `source_url` ejecutado por el usuario en el SQL Editor (UPDATE 3) sobre las 3 filas del run 3 (ejecución 32), filtrando por `id`. URLs verificadas vía Supabase MCP (read-only):
+  - Jar Opener (b9e6b0ad...) → aliexpress.us/item/3256807619118033.html
+  - Glass Rinser (a5fc0da8...) → aliexpress.us/item/3256806811035402.html
+  - Salad Spinner (8e44f84a...) → aliexpress.us/item/3256804517692811.html
+- `metadata.source_url_fixed = true` en las 3. El fix de `clean()` está verificado offline; falta validarlo en un run 4 real.
+- Run 2 (filas de la ejecución 28) sin tocar: `source_url` sigue null y no tienen el flag. La query original filtraba por la ventana 18:00–20:00, que habría marcado también estas filas, así que se cambió el filtro a `id`.
